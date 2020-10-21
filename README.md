@@ -7,8 +7,6 @@ joystick movement of board.
 currently basic board and movement.
 
 To do
-combine like pieces
-drop random pieces in after each move
-scoring
-improve use of sprites
+* improve use of sprites
+* use save file for highscores
 
