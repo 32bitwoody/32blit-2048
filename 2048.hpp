@@ -38,6 +38,8 @@
   bool movedown=false;
   bool moveleft=false;
   bool moveright=false;
+  bool menupress=false;
+  bool homepress=false;
   bool boardmoved=false;
   int tick_count = 0;
 // score and single highscore

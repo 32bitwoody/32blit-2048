@@ -109,6 +109,12 @@ void update(uint32_t time) {
 	moveleft=true;
 	move(1,0);
   }
+  if (pressed(Button::MENU) && menupress==false) {
+  	menupress=true;
+  }
+  if (pressed(Button::HOME) && homepress==false) {
+	homepress=true;
+  }
   if (pressed(Button::DPAD_RIGHT) && moveright==false) {
 	moveright=true;
     move(-1,0);
@@ -136,11 +142,15 @@ void update(uint32_t time) {
     moveright=false;
     add_piece();
   }
-  if (pressed(Button::MENU)==true) {
-	end_game();  
+  if (pressed(Button::MENU)==false && menupress==true) {
+	end_game();
+	menupress=false;  
   }
-  write_save(score_data,0);
-  write_save(game_data,1);
+  if (pressed(Button::HOME)==false && homepress==true) {
+	
+    homepress=false;
+  }
+
 }
 /*--------------------------------------------------------------------*/
 // Look at board and act on pieces above/below, or left/right
@@ -209,6 +219,8 @@ void move(int xc,int yc) {
 /*--------------------------------------------------------------------*/
 // add new piece to board
 void add_piece() {
+	write_save(score_data,0);
+    write_save(game_data,1);
 // only add a new piece if the board moved	
   if(boardmoved==false){
 	  return;
@@ -249,6 +261,7 @@ void add_piece() {
       }
     }
   }
+
 //  printf("Cant add by system\n");
   check_board();
 }
