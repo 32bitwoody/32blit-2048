@@ -7,44 +7,27 @@
 #include "assets.hpp"
 
 using namespace blit;
+/*--------------------------------------------------------------------*/
 
-const uint16_t screen_width = 320;
-const uint16_t screen_height = 240;
-  std::vector<uint8_t> board = {
-	0x02, 0x03, 0x04, 0x00,
-	0x02, 0x01, 0x04, 0x03, 
-	0x03, 0x04, 0x01, 0x02, 
-	0x04, 0x03, 0x02, 0x01
-};
-// Hold array of scores for each fruit. 
-//  Saves generating powers of 2 on the fly
-std::vector<uint16_t> pof2 = {
-	0x00, 0x01, 0x02, 0x04, 0x08, 
-	      0x10, 0x20, 0x40, 0x80, 
-	      0x100, 0x200, 0x400, 0x800, 
-	      0x1000
-};
-// Set up some flags
-  bool emptyboard=true;
-  bool endflag=true;
-  
-// Flags for stick movement, so we can track release  
-  bool moveup=false;
-  bool movedown=false;
-  bool moveleft=false;
-  bool moveright=false;
-  bool boardmoved=false;
-
-// score and single highscore
-  unsigned int score=0;
-  unsigned int highscore=0;
+/*--------------------------------------------------------------------*/
 /* setup */
 void init() {
   // "asset_dingbads" is the asset name defined in assets.yml
   screen.sprites = SpriteSheet::load(asset_dingbads);
+  if(read_save(score_data,0)) {
+    // Loaded sucessfully!
+  } else {
+    // No save file or it failed to load, set up some defaults.
+    score_data.highscore = 0;
+  }
+  if(read_save(game_data,1)) {
+	  // success !
+  } else {
+	  game_data.score=0;
+	  game_data.board[5]=0x02;
+  }
 }
-
-int tick_count = 0;
+/*--------------------------------------------------------------------*/
 void render(uint32_t time_ms) {
   screen.pen = Pen(20, 30, 40);
   screen.clear();
@@ -66,16 +49,16 @@ void render(uint32_t time_ms) {
 
   screen.pen = Pen(207, 207, 159);
   screen.text("Score", minimal_font, Point(125, 18));	
-  std::string sc = std::to_string(score);
+  std::string sc = std::to_string(game_data.score);
   screen.text(sc, minimal_font, Point(130, 28));
   screen.text("High", minimal_font, Point(125, 52));
     screen.text("score", minimal_font, Point(130, 60));	
 	
-  sc = std::to_string(highscore);
+  sc = std::to_string(score_data.highscore);
   screen.text(sc, minimal_font, Point(130, 70));		
 
   uint32_t ms_start = now();
-
+  uint32_t t;
   // Draw a sprite using its numerical index in the sprite sheet
   // Treats the sprite sheet as a grid of 8x8 sprites numbered from 0 to 63
   // In this case sprite number 1 is the second sprite from the top row.
@@ -83,8 +66,12 @@ void render(uint32_t time_ms) {
   // Draw them according to a 16 slot array(4x4)
   for (int x = 0; x < 4; x++) {
     for (int y = 0; y < 4; y++) {
-      if (board[x+y*4]>0) {
-        screen.sprite(board[x+y*4], Point(20*x+20, 20*y+20));
+      if (game_data.board[x+y*4]>0) {
+		  t=game_data.board[x+y*4]*8;
+//        screen.sprite(game_data.board[x+y*4], Point(25*x+15, 25*y+20));
+          screen.stretch_blit(screen.sprites, Rect(t, 0,8, 8), Rect(22*x+14, 21*y+24, 20, 20));
+//          screen.stretch_blit(screen.sprites, Rect(t, 0,8, 8), Rect(25, 25, 16, 16));
+
       }
    }
 }
@@ -106,7 +93,7 @@ void render(uint32_t time_ms) {
     screen.rectangle(Rect(i * (block_size + 1) + 1 + 13, screen.bounds.h - block_size - 1, block_size, block_size));
   }
 }
-
+/*--------------------------------------------------------------------*/
 void update(uint32_t time) {
 // Check for dpad pressed and start move
   if (pressed(Button::DPAD_UP) && moveup==false) {
@@ -128,31 +115,37 @@ void update(uint32_t time) {
   }
 //On release place new piece
   if (pressed(Button::DPAD_UP)==false && moveup==true) {
-    printf("Release: Up\n");
+//    printf("Release: Up\n");
     moveup=false;
     add_piece();
   }
   if (pressed(Button::DPAD_DOWN)==false && movedown==true) {
-    printf("Release: Down\n");
+//    printf("Release: Down\n");
     movedown=false;
     add_piece();
 
   }
   if (pressed(Button::DPAD_LEFT)==false && moveleft==true) {
-    printf("Release: Left\n");
+//    printf("Release: Left\n");
     moveleft=false;
     add_piece();
 
   }
   if (pressed(Button::DPAD_RIGHT)==false && moveright==true) {
-    printf("Release: Right\n");
+//    printf("Release: Right\n");
     moveright=false;
     add_piece();
   }
+  if (pressed(Button::MENU)==true) {
+	end_game();  
+  }
+  write_save(score_data,0);
+  write_save(game_data,1);
 }
+/*--------------------------------------------------------------------*/
 // Look at board and act on pieces above/below, or left/right
 void move(int xc,int yc) {
-  printf("Move: \n");
+//  printf("Move: \n");
   unsigned int xl=0;
   unsigned int xu=4;
   unsigned int yl=0;
@@ -185,18 +178,21 @@ void move(int xc,int yc) {
   unsigned int y=yl;
   while(i<5) {
 //	printf("%d,%d ",x,y);
-    if (board[x+y*4]==0x00) {
-	  board[x+y*4]=board[x+xc+(y+yc)*4];
-	  board[x+xc+(y+yc)*4]=0x00;
-	  if(board[x+y*4]!=0x00) {
+    if (game_data.board[x+y*4]==0x00) {
+	  game_data.board[x+y*4]=game_data.board[x+xc+(y+yc)*4];
+	  game_data.board[x+xc+(y+yc)*4]=0x00;
+	  if(game_data.board[x+y*4]!=0x00) {
 	    boardmoved=true;
       }
 	}
     if(i>3) {
-	  if (board[x+y*4]==board[x+xc+(y+yc)*4] && board[x+y*4]!=0x00) {
-	    board[x+y*4]=board[x+y*4]+1;
-	    board[x+xc+(y+yc)*4]=0x00;
-	    score=score+pof2[board[x+y*4]];
+	  if (game_data.board[x+y*4]==game_data.board[x+xc+(y+yc)*4] && game_data.board[x+y*4]!=0x00) {
+	    game_data.board[x+y*4]=game_data.board[x+y*4]+1;
+	    game_data.board[x+xc+(y+yc)*4]=0x00;
+	    game_data.score=game_data.score+pof2[game_data.board[x+y*4]];
+	    if(game_data.score>score_data.highscore) {
+		  score_data.highscore=game_data.score;
+		}
 	  }
     }
     x=x+xs;
@@ -210,6 +206,7 @@ void move(int xc,int yc) {
     }
   }
 }
+/*--------------------------------------------------------------------*/
 // add new piece to board
 void add_piece() {
 // only add a new piece if the board moved	
@@ -230,8 +227,8 @@ void add_piece() {
 	unsigned int x = (rand() % 4);
 	unsigned int y = (rand() % 4);
 //    printf("Picked %d,%d - %d (%d)\n",x,y,v,lc);
-    if (board[x+y*4]==0x00) {
-	  board[x+y*4]=v;
+    if (game_data.board[x+y*4]==0x00) {
+	  game_data.board[x+y*4]=v;
       place=true;	
       boardmoved=false;
     }
@@ -243,9 +240,9 @@ void add_piece() {
 //  printf("Cant add by random\n");
   for (int x = 0; x < 4; x++) {
     for (int y = 0; y < 4; y++) {
-	  printf("a%d,%d ",x,y);
-	  if (board[x+y*4]==0x00) {
-	  board[x+y*4]=v;
+//	  printf("a%d,%d ",x,y);
+	  if (game_data.board[x+y*4]==0x00) {
+	  game_data.board[x+y*4]=v;
       boardmoved=false;
       check_board();
 	  return;
@@ -255,6 +252,7 @@ void add_piece() {
 //  printf("Cant add by system\n");
   check_board();
 }
+/*--------------------------------------------------------------------*/
 void check_board() {
   printf("Check board for end of game\n");
 // End of game is a bit scrappy, need to use flags to change render to a 
@@ -262,27 +260,29 @@ void check_board() {
   endflag=true;
   for (int x = 0; x < 4; x++) {
     for (int y = 0; y < 4; y++) {
-	  printf("c%d,%d ",x,y);
-	  if (board[x+y*4]==0x00) {
+//	  printf("c%d,%d ",x,y);
+	  if (game_data.board[x+y*4]==0x00) {
 		endflag=false;
 		printf("~1");
 	  }
-	  if (board[x+y*4]!=0x00) {
+	  if (game_data.board[x+y*4]!=0x00) {
 		emptyboard=false;
 	  }
-	  if (board[x+y*4]==board[x+1+y*4] && x<3) {
-		endflag=false;
-		printf("~2");
+	  if(x<3) {
+	    if (game_data.board[x+y*4]==game_data.board[x+1+y*4]) {
+		  endflag=false;
+		  printf("~2");
+	    }
 	  }
-	  if (board[x+y*4]==board[x-1+y*4] && x>1) {
+	  if (game_data.board[x+y*4]==game_data.board[x-1+y*4] && x>1) {
 		endflag=false;
 		printf("~3");
 	  }
-	  if (board[x+y*4]==board[x+(y+1)*4] && y<3) {
+	  if (game_data.board[x+y*4]==game_data.board[x+(y+1)*4] && y<3) {
 		endflag=false;
 		printf("~4");
 	  }
-	  if (board[x+y*4]==board[x+(y-1)*4] && y>1) {
+	  if (game_data.board[x+y*4]==game_data.board[x+(y-1)*4] && y>1) {
 		endflag=false;
 		printf("~5");
 	  }
@@ -302,21 +302,22 @@ void check_board() {
 	return;
   }   
 }
-
+/*--------------------------------------------------------------------*/
 void end_game() {
 	printf("give score and clear\n");
 // only has one high score and it does not persist. add filestream to 
 // store highscores.
-	if(score>highscore) {
-	  highscore=score;
+	if(game_data.score>score_data.highscore) {
+	  score_data.highscore=game_data.score;
 	}
-	score=0;
+	game_data.score=0;
 	for (int x = 0; x < 4; x++) {
 	for (int y = 0; y < 4; y++) {
-		board[x+y*4]=0x00;
+		game_data.board[x+y*4]=0x00;
 	}
 // addpiece will only work if the board has just moved.	
 	boardmoved=true;
 	add_piece();
   }
 }
+/*--------------------------------------------------------------------*/

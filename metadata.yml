@@ -1,0 +1,8 @@
+title: Fruit2048
+description: Fruit based 2048 game.
+author: 32bitwoody
+splash:
+  file: assets/meta-splash.png
+icon:
+  file: assets/meta-icon.png
+version: v1.1.019
